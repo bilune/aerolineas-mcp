@@ -1,0 +1,7 @@
+node_modules/
+.env
+.vercel
+
+# Aerolíneas favicon — downloaded by scripts/fetch-favicon.js (trademarked artwork, not redistributed)
+favicon.ico
+api/favicon.js
