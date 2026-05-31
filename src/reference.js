@@ -1,5 +1,6 @@
 // Static reference data exposed as MCP resources. Curated from observed
-// fareRules responses + common Argentine cabotage airports.
+// fareRules responses of the upstream airline + common domestic airports
+// for the configured market. Adapt to your target airline if needed.
 
 export const brands = [
   { code: "EA", name: "Promo",                 cabin: "Economy",        includesCarryOn: false, includesCheckedBag: false, notes: "Cheapest miles fare. No carry-on, no checked baggage; only personal item." },
@@ -22,7 +23,7 @@ export const fareOptions = [
   { code: "SEAT_SELECTION",    es: "Selección de asiento",  description: "Pre-flight seat selection. Free in higher brands, paid in lower ones." },
   { code: "EXCHANGES",         es: "Cambios",               description: "Ability to change the ticket (may have fees)." },
   { code: "REFUNDS",           es: "Devoluciones",          description: "Ability to refund the ticket (may have fees)." },
-  { code: "ARPLUS_MILES",      es: "Millas Aerolíneas Plus", description: "Accrual of Aerolíneas Plus miles on the ticket." },
+  { code: "ARPLUS_MILES",      es: "Millas",                description: "Accrual of loyalty-program miles on the ticket." },
   { code: "PRIORITY_BOARDING", es: "Embarque prioritario",  description: "Priority boarding lane." },
   { code: "LOUNGE",            es: "Sala VIP",              description: "Access to airport lounges (typically Business)." },
 ];
@@ -54,8 +55,10 @@ export const airports = [
   { iata: "PSS", name: "Libertador General José de San Martín", city: "Posadas", country: "AR", domestic: true },
 ];
 
-export const serverInstructions = `
-Aerolíneas Argentinas flight search MCP. All prices in ARS. Dates YYYY-MM-DD.
+export function buildServerInstructions(uriScheme) {
+  return `
+Flight search MCP — wrapper for an upstream airline's flight inventory API.
+Prices in the upstream currency (typically ARS for this deployment). Dates YYYY-MM-DD.
 
 Tool selection:
 - find_best_combinations: USE THIS when the user is flexible on dates and wants
@@ -68,16 +71,16 @@ Tool selection:
   reference resources are not enough or you suspect the catalog changed.
 - token_status: debug only.
 
-Brand cheat sheet (Economy cabotage):
+Brand cheat sheet (Economy domestic — codes are upstream-specific):
 - EA Promo: only personal item. Carry-on NOT available.
 - EB Base: only personal item INCLUDED FREE. Carry-on is AVAILABLE FOR EXTRA
   CHARGE — do NOT tell the user "Base includes carry-on", because it doesn't.
 - EP Plus: carry-on (8kg) included free. Checked bag is extra charge.
 - EF Flex: carry-on + 1 checked bag (15kg) included free + free changes.
 - PE Premium Economy: like Flex but Premium Economy cabin.
-- BC Business: Aerolíneas markets it as full-service; fareRules data has all
-  options as 'unavailable' — do NOT rely on fareRules to validate carry-on
-  inclusion on Business; consult the brands reference resource instead.
+- BC Business: typically full-service, but the upstream fareRules data has all
+  options as 'unavailable' for this brand — do NOT rely on fareRules to validate
+  carry-on inclusion on Business; consult the brands reference resource instead.
 
 IMPORTANT: in the get_fare_rules output, each option has an \`inclusion\` field:
   - "free"        → included at no extra cost
@@ -92,8 +95,9 @@ Common requireOptions strings: "CARRY_ON", "CHECKED_BAGGAGE", "Personal_Item",
 "SEAT_SELECTION", "EXCHANGES", "REFUNDS", "ARPLUS_MILES".
 
 Reference data (read once per session if needed):
-- aerolineas://reference/brands
-- aerolineas://reference/fare-options
-- aerolineas://reference/cabin-classes
-- aerolineas://reference/airports
+- ${uriScheme}://reference/brands
+- ${uriScheme}://reference/fare-options
+- ${uriScheme}://reference/cabin-classes
+- ${uriScheme}://reference/airports
 `.trim();
+}

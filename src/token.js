@@ -2,15 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { config } from "./config.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
-
-const HTML_URL =
-  "https://www.aerolineas.com.ar/flex-dates-calendar?adt=1&inf=0&chd=0&flexDates=true&cabinClass=Economy&flightType=ROUND_TRIP&leg=BHI-AEP-20260530&leg=AEP-BHI-20260620";
-
-const UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 const SAFETY_MARGIN_SECONDS = 60;
 
@@ -38,9 +33,9 @@ async function persistEnv(token, expiration) {
 }
 
 async function scrapeToken() {
-  const res = await fetch(HTML_URL, {
+  const res = await fetch(config.upstreamTokenUrl(), {
     headers: {
-      "user-agent": UA,
+      "user-agent": config.upstreamUserAgent(),
       accept:
         "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "accept-language": "en-US,en;q=0.9",

@@ -1,5 +1,5 @@
-// Transformations from the raw aerolineas.com.ar /v1/flights/offers payload
-// into the lean shapes exposed by the MCP tools.
+// Transformations from the raw upstream /flights/offers payload into the
+// lean shapes exposed by the MCP tools.
 
 import { buildBookingUrl } from "./url.js";
 

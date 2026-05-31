@@ -1,13 +1,12 @@
 {
-  "name": "aerolineas-mcp",
+  "name": "flight-search-mcp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
     "smoke": "node scripts/smoke.js",
-    "smoke:http": "node scripts/http-smoke.js",
-    "fetch-favicon": "node scripts/fetch-favicon.js"
+    "smoke:http": "node scripts/http-smoke.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",

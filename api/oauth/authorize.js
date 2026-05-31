@@ -53,8 +53,7 @@ function renderConsent(params, error) {
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Aerolíneas MCP — Authorize</title>
-  <link rel="icon" href="/favicon.ico">
+  <title>Flight Search MCP — Authorize</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background:#f5f5f7; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
@@ -72,7 +71,7 @@ function renderConsent(params, error) {
 <body>
   <form class="card" method="POST">
     <h1>Authorize access</h1>
-    <p>An MCP client is requesting access to your Aerolíneas search server.</p>
+    <p>An MCP client is requesting access to your flight search server.</p>
     <p>Client: <code>${htmlEscape(params.client_id ?? "")}</code></p>
     ${errorHtml}
     <label for="pw">Access password</label>

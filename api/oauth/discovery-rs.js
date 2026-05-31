@@ -21,6 +21,6 @@ export default async function handler(req, res) {
     authorization_servers: [base],
     scopes_supported: [SCOPE],
     bearer_methods_supported: ["header"],
-    resource_name: "Aerolíneas Argentinas MCP",
+    resource_name: process.env.OAUTH_RESOURCE_NAME || "Flight Search MCP",
   });
 }

@@ -1,15 +1,17 @@
-# Aerolíneas Argentinas MCP
+# Flight Search MCP — Aerolíneas Argentinas
 
-A Model Context Protocol server that lets AI assistants (Claude Code, claude.ai, any MCP-compatible client) search Aerolíneas Argentinas flight offers, compare fare brands, and generate deep-links to buy tickets.
+An OAuth-protected [Model Context Protocol](https://modelcontextprotocol.io/) server that wraps **Aerolíneas Argentinas**'s public flight inventory API and exposes it as tools to AI assistants (Claude Code, claude.ai, any MCP-compatible client).
 
-**Not affiliated with, endorsed by, or sponsored by Aerolíneas Argentinas.** Personal-use project that talks to the same public `api.aerolineas.com.ar` endpoint the airline's website uses.
+The codebase itself is API-agnostic — the upstream URLs, headers, and identity strings live in environment variables. This repo ships configured for Aerolíneas, but pointing it at another carrier with a similar Sabre-style backend is a matter of changing `.env`.
 
-## What it can do
+**Not affiliated with, endorsed by, or sponsored by Aerolíneas Argentinas.** Personal-use project that talks to the same `api.aerolineas.com.ar` endpoint the airline's website uses.
 
-- **Search by date or by window**: ask "BHI ↔ AEP cheapest in July with stay 5–15 days, must include carry-on" — the server explores combinations and returns the best ones.
-- **Honest brand inclusions**: `enabled: true` in Aerolíneas' fare rules does NOT mean "included for free" (that bit me; it's documented now). The server normalizes each option to `free | paid | unavailable` so the LLM doesn't get fooled.
-- **Buy-now links**: every result comes with a `bookingUrl` pre-filled with shoppingId and legs — one click takes the user straight to checkout.
-- **Reference catalogs as MCP resources**: brands, fare-option codes, cabin classes, common airports — the LLM can read once per session and stop guessing.
+## What it does
+
+- **Date-window search**: ask "BHI ↔ AEP cheapest in July with stay 5–15 days, must include carry-on" — the server explores combinations and returns the best ones.
+- **Honest brand inclusions**: Aerolíneas' fare-rules API marks options as `enabled: true` even when they cost extra (e.g. Base says CARRY_ON is "enabled" but `detail: "Cargo extra"`). The server normalizes each option to `free | paid | unavailable` so the LLM never tells the user "Base includes carry-on" when it doesn't.
+- **Buy-now links**: every result comes with a `bookingUrl` pre-filled with shoppingId and legs — one click takes the user straight to aerolineas.com.ar checkout.
+- **Reference catalogs as MCP resources**: brands (EA Promo, EB Base, EP Plus, EF Flex, …), fare-option codes, cabin classes, Argentine cabotage airports — the LLM reads them once per session and stops guessing.
 - **Markdown-rendered output**: tool responses come as readable tables for the LLM and as typed JSON (`structuredContent`) for clients that render structured data.
 
 ## Tools
@@ -17,16 +19,16 @@ A Model Context Protocol server that lets AI assistants (Claude Code, claude.ai,
 | Tool | Use it for |
 |---|---|
 | `find_best_combinations` | Best round-trip combos within a date window, filtered by required brand options (CARRY_ON, CHECKED_BAGGAGE…). |
-| `search_flights` | Flex calendar (30 days per leg) or branded fares for an exact date. Lean by default; `include` for more detail. |
-| `get_fare_rules` | Full per-brand option matrix when the reference resources aren't enough. |
+| `search_flights` | Flex calendar (~30 days per leg) or branded fares for an exact date. Lean by default; `include` for detail. |
+| `get_fare_rules` | Full per-brand option matrix with the `inclusion` field per option. |
 | `token_status` | Inspect the cached upstream auth token. Debug only. |
 
 ## Architecture in 30 seconds
 
 - Vercel serverless functions, Node runtime, no DB.
 - OAuth 2.0 with PKCE, Dynamic Client Registration, refresh tokens. Stateless — tokens are HS256 JWTs signed with `JWT_SECRET`.
-- Consent screen gated by `ACCESS_PASSWORD` (you type it once when adding the connector; the refresh-token rotation keeps it alive for ~90 days).
-- Upstream API auth (Aerolíneas' own bearer token) is scraped and cached server-side per cold start.
+- Consent screen gated by `ACCESS_PASSWORD` (you type it once per client; refresh-token rotation keeps it alive ~90 days).
+- Upstream Aerolíneas API auth (their own bearer token) is scraped from a public HTML page on aerolineas.com.ar and cached server-side.
 
 See [CLAUDE.md](./CLAUDE.md) for the deep-dive (file map, gotchas, OAuth design, Vercel quirks).
 
@@ -36,31 +38,36 @@ You need a [Vercel](https://vercel.com) account.
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/YOUR_GH/aerolineas-mcp.git
-cd aerolineas-mcp
+git clone https://github.com/YOUR_GH/flight-search-mcp.git
+cd flight-search-mcp
 npm install
 
-# 2. Fetch the Aerolíneas favicon (not redistributed; downloaded at setup time)
-npm run fetch-favicon
+# 2. Generate secrets
+openssl rand -hex 32        # use as JWT_SECRET
+openssl rand -base64 18     # use as ACCESS_PASSWORD (or pick your own)
 
-# 3. Generate secrets
-openssl rand -hex 32       # use as JWT_SECRET
-openssl rand -base64 18    # use as ACCESS_PASSWORD (or pick your own)
-
-# 4. Link to a Vercel project
+# 3. Link to a Vercel project
 vercel link
 
-# 5. Set env vars in production
+# 4. Configure env vars (see .env.example for the full list)
 vercel env add JWT_SECRET production
 vercel env add ACCESS_PASSWORD production
+vercel env add UPSTREAM_API_BASE production       # e.g. https://api.aerolineas.com.ar
+vercel env add UPSTREAM_WEB_ORIGIN production     # e.g. https://www.aerolineas.com.ar
+vercel env add UPSTREAM_TOKEN_URL production      # public HTML page with window.__ACCESS_TOKEN__
+vercel env add UPSTREAM_CHANNEL_ID production     # e.g. WEB_AR
+vercel env add UPSTREAM_LOCALE production         # e.g. es-AR
+vercel env add BOOKING_URL_BASE production        # e.g. https://www.aerolineas.com.ar/flights-offers
 
-# 6. Deploy
+# 5. Deploy
 vercel deploy --prod --yes
 ```
 
-**Important**: in the Vercel project settings, **disable Deployment Protection** (or set it to "Only Preview Deployments"). The OAuth discovery endpoints (`/.well-known/*`) must be publicly reachable. Authentication is enforced at the application layer.
+**Important**: in the Vercel project settings, **disable Deployment Protection** (or set it to "Only Preview Deployments"). The OAuth discovery endpoints (`/.well-known/*`) must be publicly reachable. Authentication is enforced at the application layer (OAuth + JWT).
 
-(Optional) Add a custom domain in Vercel and update `serverInfo.icons[0].src` in `src/server.js` if you want the data-URI fallback to use your own URL.
+### Why env-driven URLs
+
+So the public source code stays a generic flight-search wrapper. The specific airline you point it at is a deployment-time decision, not a property of the code. Want to use this with a different airline that has a Sabre-style `flights/offers` endpoint? Just change the env vars.
 
 ## Connect to claude.ai
 
@@ -72,16 +79,16 @@ vercel deploy --prod --yes
 ## Connect to Claude Code (CLI)
 
 ```bash
-claude mcp add --transport http aerolineas https://YOUR_DOMAIN/api/mcp
+claude mcp add --transport http flightsearch https://YOUR_DOMAIN/api/mcp
 ```
 
-Claude Code will walk through the OAuth flow the same way.
+Claude Code walks through the OAuth flow the same way.
 
 ## Try it
 
-> "Find me the cheapest BHI ↔ AEP round trip in July 2026, stay between 5 and 15 days, must include carry-on. Give me the top 3 with buy links."
+> "Find me the cheapest BHI ↔ AEP round trip in July 2026, stay 5–15 days, must include carry-on. Top 3 with buy links."
 
-The server returns a markdown table with dates, flight numbers, the brand (it'll be `EP Plus` or higher because carry-on is paid on Base), the total in ARS, and a `bookingUrl` per row.
+The server returns a markdown table with dates, flight numbers, the brand (it'll be `EP Plus` or higher because carry-on is only free from Plus up — not on Base, despite what the fareRules `enabled` flag suggests), the total in ARS, and a `bookingUrl` per row.
 
 ## Development
 
@@ -90,15 +97,12 @@ npm run smoke          # MCP smoke test over stdio
 npm run smoke:http     # MCP smoke test over HTTP (no auth)
 ```
 
-For OAuth-flow testing, see CLAUDE.md.
-
-Local env vars when running outside Vercel:
-
 ```bash
-export JWT_SECRET="anything-long-and-random"
-export ACCESS_PASSWORD="anything"
+# Local env (don't commit)
+cp .env.example .env
+# fill in JWT_SECRET, ACCESS_PASSWORD, UPSTREAM_*
 ```
 
 ## License
 
-MIT for the code. The Aerolíneas Argentinas trademark, logo (favicon), and the underlying API are property of Aerolíneas Argentinas — used here for personal MCP integration without endorsement.
+MIT for the code. Aerolíneas Argentinas' trademarks, logos, branding, and API responses remain the property of Aerolíneas Argentinas. This repo does not redistribute any of their artwork or copyrighted content.

@@ -1,8 +1,5 @@
 import { getAccessToken } from "./token.js";
-
-const API_BASE = "https://api.aerolineas.com.ar";
-const UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
+import { config } from "./config.js";
 
 function buildLegs(legs) {
   return legs.map((l) => {
@@ -33,7 +30,7 @@ export async function searchOffers({
     flightType: resolvedType,
   });
   for (const leg of buildLegs(legs)) params.append("leg", leg);
-  const url = `${API_BASE}/v1/flights/offers?${params.toString()}`;
+  const url = `${config.upstreamApiBase()}${config.upstreamOffersPath()}?${params.toString()}`;
 
   let { token } = await getAccessToken();
   let res = await call(url, token);
@@ -57,15 +54,16 @@ export async function searchOffers({
 }
 
 function call(url, token) {
+  const origin = config.upstreamWebOrigin();
   return fetch(url, {
     headers: {
       accept: "application/json, text/plain, */*",
-      "accept-language": "es-AR",
+      "accept-language": config.upstreamLocale(),
       authorization: `Bearer ${token}`,
-      origin: "https://www.aerolineas.com.ar",
-      referer: "https://www.aerolineas.com.ar/",
-      "user-agent": UA,
-      "x-channel-id": "WEB_AR",
+      origin,
+      referer: `${origin}/`,
+      "user-agent": config.upstreamUserAgent(),
+      "x-channel-id": config.upstreamChannelId(),
     },
   });
 }
