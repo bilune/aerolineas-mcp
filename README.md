@@ -1,10 +1,12 @@
-# Flight Search MCP — Aerolíneas Argentinas
+# Aerolíneas Argentinas MCP
 
-An OAuth-protected [Model Context Protocol](https://modelcontextprotocol.io/) server that wraps **Aerolíneas Argentinas**'s public flight inventory API and exposes it as tools to AI assistants (Claude Code, claude.ai, any MCP-compatible client).
+An OAuth-protected [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI assistants (Claude Code, claude.ai, any MCP-compatible client) search **Aerolíneas Argentinas** flights, understand what each fare brand actually includes, and produce checkout deep-links.
 
-The codebase itself is API-agnostic — the upstream URLs, headers, and identity strings live in environment variables. This repo ships configured for Aerolíneas, but pointing it at another carrier with a similar Sabre-style backend is a matter of changing `.env`.
+It calls the same public `api.aerolineas.com.ar` endpoints the airline's own website uses (`aerolineas.com.ar`). No private APIs, no scraping of authenticated pages — just the same JSON the public flight search returns, exposed as well-typed MCP tools with sensible defaults for AI consumption (lean output, markdown summaries, structured JSON, branded inclusion semantics fixed).
 
-**Not affiliated with, endorsed by, or sponsored by Aerolíneas Argentinas.** Personal-use project that talks to the same `api.aerolineas.com.ar` endpoint the airline's website uses.
+**Not affiliated with, endorsed by, or sponsored by Aerolíneas Argentinas.** Personal project; use at your own discretion.
+
+The source code itself is API-agnostic — upstream URLs, headers, and identity strings live in environment variables (`UPSTREAM_*`). Pointing it at another carrier with a similar Sabre-style backend is a matter of changing `.env`.
 
 ## What it does
 
