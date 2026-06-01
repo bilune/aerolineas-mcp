@@ -62,23 +62,32 @@ function buildDay(item, include) {
 }
 
 function buildBrandedOffer(item, include) {
-  const leg = item?.leg ?? null;
-  const brandOffers =
-    item?.offerDetails?.brandOffers ??
-    item?.brandOffers ??
-    (item?.offerDetails ? [item.offerDetails] : []);
+  // Real upstream BRANDED shape (flexDates=false):
+  //   item = {
+  //     legs: [{ segments, stops, totalDuration, dateDiff, ... }],
+  //     offers: [
+  //       { offerId, cabinClass, bookingClass, fareBasis,
+  //         brand: { id, name },
+  //         seatAvailability: { seats, lowAvailability },
+  //         fare: { baseFare, taxes, total },
+  //         combinableOffers: [...] }, ...
+  //     ]
+  //   }
+  const leg = item?.legs?.[0] ?? null;
+  const brandOffers = item?.offers ?? [];
   const firstSeg = leg?.segments?.[0];
   const lastSeg = leg?.segments?.[leg?.segments?.length - 1];
 
   const offer = {
-    date: item?.departure ?? null,
+    date: firstSeg?.departure?.slice(0, 10) ?? null,
     stops: leg?.stops ?? null,
     duration: leg?.totalDuration ?? null,
     depart: timeOf(firstSeg?.departure),
     arrive: timeOf(lastSeg?.arrival),
     brands: brandOffers.map((b) => {
       const brand = {
-        brandCode: b.brandId ?? b.brand ?? b.brandCode ?? null,
+        brandCode: b.brand?.id ?? null,
+        brandName: b.brand?.name ?? null,
         total: b.fare?.total ?? null,
       };
       if (include.has("fareDetails")) {
@@ -90,6 +99,7 @@ function buildBrandedOffer(item, include) {
       }
       if (include.has("availability")) {
         brand.seatsAvailable = b.seatAvailability?.seats ?? null;
+        brand.lowAvailability = b.seatAvailability?.lowAvailability ?? null;
       }
       return brand;
     }),
@@ -124,26 +134,42 @@ export function summarizeOffers(data, opts = {}) {
   const searchType = meta.searchType ?? null;
 
   const calendar = data?.calendarOffers ?? {};
-  const branded = data?.brandedOffers ?? null;
+  const branded = data?.brandedOffers ?? {};
+
+  // Both calendarOffers and brandedOffers are objects keyed by leg index ("0", "1").
+  const brandedKeys = Object.keys(branded);
+  const calendarKeys = Object.keys(calendar);
 
   let legs;
-  if (Array.isArray(branded) && branded.length) {
-    legs = branded.map((legItems, idx) => {
-      const offers = (legItems ?? []).map((it) => buildBrandedOffer(it, include));
-      const filtered = applyFilters(
-        offers,
-        { topN, dates },
-        (o) => Math.min(...o.brands.map((b) => b.total ?? Infinity)),
-      );
-      return { index: idx, route: routes[idx] ?? null, offers: filtered };
-    });
+  if (brandedKeys.length) {
+    legs = brandedKeys
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => {
+        const legItems = branded[k] ?? [];
+        const offers = legItems.map((it) => buildBrandedOffer(it, include));
+        const filtered = applyFilters(
+          offers,
+          { topN, dates },
+          (o) => Math.min(...o.brands.map((b) => b.total ?? Infinity)),
+        );
+        return {
+          index: Number(k),
+          route: routes[Number(k)] ?? null,
+          offers: filtered,
+        };
+      });
   } else {
-    const keys = Object.keys(calendar).sort((a, b) => Number(a) - Number(b));
-    legs = keys.map((k) => {
-      const days = (calendar[k] ?? []).map((it) => buildDay(it, include));
-      const filtered = applyFilters(days, { topN, dates }, (d) => d.total);
-      return { index: Number(k), route: routes[Number(k)] ?? null, days: filtered };
-    });
+    legs = calendarKeys
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => {
+        const days = (calendar[k] ?? []).map((it) => buildDay(it, include));
+        const filtered = applyFilters(days, { topN, dates }, (d) => d.total);
+        return {
+          index: Number(k),
+          route: routes[Number(k)] ?? null,
+          days: filtered,
+        };
+      });
   }
 
   const priceSummary = legs.map((l) => {

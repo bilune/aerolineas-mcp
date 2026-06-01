@@ -325,7 +325,7 @@ export function buildServer() {
   const server = new McpServer(
     {
       name: config.serverName(),
-      version: "0.11.0",
+      version: "0.11.1",
       websiteUrl: config.serverWebsiteUrl() || undefined,
       description: config.serverDescription(),
     },

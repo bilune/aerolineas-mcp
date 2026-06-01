@@ -145,14 +145,23 @@ function renderFlexDays(days) {
 function renderBrandedOffers(offers) {
   const out = [];
   for (const o of offers) {
+    const stops = o.stops === 0 ? "directo" : `${o.stops} escalas`;
     out.push(
-      `**${shortDate(o.date)}** · ${o.depart ?? "—"}→${o.arrive ?? "—"} · ${o.stops ?? "?"} stops · ${o.duration ?? "?"} min`,
+      `**${shortDate(o.date)}** · ${o.depart ?? "—"}→${o.arrive ?? "—"} · ${stops} · ${o.duration ?? "?"} min`,
     );
     if (o.brands?.length) {
-      out.push("| Brand | Total |");
-      out.push("|---|---|");
-      for (const b of o.brands) {
-        out.push(`| ${b.brandCode ?? "—"} | ${fmtPrice(b.total)} |`);
+      // Sort by total ascending so cheapest is on top
+      const sorted = [...o.brands].sort(
+        (a, b) => (a.total ?? Infinity) - (b.total ?? Infinity),
+      );
+      out.push("| Brand | Tarifa | Total |");
+      out.push("|---|---|---|");
+      for (const b of sorted) {
+        const name = b.brandName
+          ? `${b.brandCode} ${b.brandName}`
+          : (b.brandCode ?? "—");
+        const fare = b.cabinClass ? b.cabinClass : "—";
+        out.push(`| ${name} | ${fare} | ${fmtPrice(b.total)} |`);
       }
     }
     out.push("");
