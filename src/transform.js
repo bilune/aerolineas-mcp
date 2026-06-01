@@ -39,6 +39,8 @@ function buildDay(item, include) {
     duration: leg?.totalDuration ?? null,
     depart: timeOf(firstSeg?.departure),
     arrive: timeOf(lastSeg?.arrival),
+    actualOrigin: firstSeg?.origin ?? null,
+    actualDestination: lastSeg?.destination ?? null,
   };
   if (item?.bestOffer) day.best = true;
 
@@ -84,6 +86,8 @@ function buildBrandedOffer(item, include) {
     duration: leg?.totalDuration ?? null,
     depart: timeOf(firstSeg?.departure),
     arrive: timeOf(lastSeg?.arrival),
+    actualOrigin: firstSeg?.origin ?? null,
+    actualDestination: lastSeg?.destination ?? null,
     brands: brandOffers.map((b) => {
       const brand = {
         brandCode: b.brand?.id ?? null,
@@ -198,6 +202,44 @@ export function summarizeOffers(data, opts = {}) {
       offersCount: items.length,
     };
   });
+
+  // Detect metro-code substitution: some upstream APIs (notably Aerolíneas
+  // Argentinas) treat EZE/AEP as the same Buenos Aires node and silently return
+  // offers from the wrong airport. We compare each offer's actual first-segment
+  // origin/destination against the requested leg.
+  const requestedLegs = searchArgs?.legs ?? [];
+  for (const leg of legs) {
+    const requested = requestedLegs[leg.index];
+    if (!requested) continue;
+    const items = leg.days ?? leg.offers ?? [];
+    const originMismatches = new Set();
+    const destMismatches = new Set();
+    for (const it of items) {
+      if (it.actualOrigin && it.actualOrigin !== requested.origin) {
+        it.originMismatch = true;
+        originMismatches.add(it.actualOrigin);
+      }
+      if (
+        it.actualDestination &&
+        it.actualDestination !== requested.destination
+      ) {
+        it.destinationMismatch = true;
+        destMismatches.add(it.actualDestination);
+      }
+    }
+    const warnings = [];
+    if (originMismatches.size) {
+      warnings.push(
+        `Requested origin ${requested.origin}, but the upstream also returned offers departing from: ${[...originMismatches].join(", ")}. The upstream airline treats these airports as the same metro area. Check each offer's actualOrigin before showing it to the user.`,
+      );
+    }
+    if (destMismatches.size) {
+      warnings.push(
+        `Requested destination ${requested.destination}, but the upstream also returned offers arriving at: ${[...destMismatches].join(", ")}.`,
+      );
+    }
+    if (warnings.length) leg.warnings = warnings;
+  }
 
   let bookingUrl = null;
   if (searchArgs?.legs && meta.shoppingId) {

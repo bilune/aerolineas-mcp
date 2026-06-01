@@ -87,6 +87,10 @@ const flexDaySchema = z
     duration: z.number().nullable(),
     depart: z.string().nullable(),
     arrive: z.string().nullable(),
+    actualOrigin: z.string().nullable().optional(),
+    actualDestination: z.string().nullable().optional(),
+    originMismatch: z.boolean().optional(),
+    destinationMismatch: z.boolean().optional(),
     best: z.boolean().optional(),
     seatsAvailable: z.number().nullable().optional(),
     lowAvailability: z.boolean().nullable().optional(),
@@ -108,6 +112,10 @@ const brandedOfferSchema = z
     duration: z.number().nullable(),
     depart: z.string().nullable(),
     arrive: z.string().nullable(),
+    actualOrigin: z.string().nullable().optional(),
+    actualDestination: z.string().nullable().optional(),
+    originMismatch: z.boolean().optional(),
+    destinationMismatch: z.boolean().optional(),
     brands: z.array(
       z
         .object({
@@ -131,6 +139,12 @@ const legResultSchema = z.object({
   route: z.string().nullable(),
   days: z.array(flexDaySchema).optional(),
   offers: z.array(brandedOfferSchema).optional(),
+  warnings: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Per-leg warnings, e.g. when the upstream returned offers departing from a different airport than requested (metro-code substitution).",
+    ),
 });
 
 const searchOutput = {
@@ -325,7 +339,7 @@ export function buildServer() {
   const server = new McpServer(
     {
       name: config.serverName(),
-      version: "0.11.1",
+      version: "0.12.0",
       websiteUrl: config.serverWebsiteUrl() || undefined,
       description: config.serverDescription(),
     },

@@ -94,6 +94,15 @@ required options without extra cost.
 Common requireOptions strings: "CARRY_ON", "CHECKED_BAGGAGE", "Personal_Item",
 "SEAT_SELECTION", "EXCHANGES", "REFUNDS", "ARPLUS_MILES".
 
+IMPORTANT - Metro-code substitution: the upstream airline treats EZE and AEP
+(both Buenos Aires) as the same node. If you request EZE→BHI you may receive
+mixed offers — some really from EZE, some actually from AEP. Each offer carries
+\`actualOrigin\` and \`actualDestination\` fields with the TRUE airport from the
+segment data, and an \`originMismatch\`/\`destinationMismatch\` flag when they
+differ from the requested leg. Legs with mismatches also carry a \`warnings\`
+array. ALWAYS check actualOrigin before telling the user a flight is from a
+specific airport. The same may apply to other multi-airport cities.
+
 Reference data (read once per session if needed):
 - ${uriScheme}://reference/brands
 - ${uriScheme}://reference/fare-options

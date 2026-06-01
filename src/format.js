@@ -102,6 +102,10 @@ export function renderSearchFlights(result) {
 
   for (const leg of result.legs) {
     lines.push(`### Leg ${leg.index}: ${leg.route ?? ""}`);
+    if (leg.warnings?.length) {
+      for (const w of leg.warnings) lines.push(`> ⚠ ${w}`);
+      lines.push("");
+    }
     if (leg.days?.length) {
       lines.push(...renderFlexDays(leg.days));
     } else if (leg.offers?.length) {
@@ -117,20 +121,30 @@ export function renderSearchFlights(result) {
 
 function renderFlexDays(days) {
   const hasSegments = days.some((d) => d.segments?.length);
-  const headers = ["Día", "Total", "Stops", "Salida", "Llegada", "Dur (min)"];
+  const hasMismatch = days.some((d) => d.originMismatch || d.destinationMismatch);
+  const headers = ["Día", "Total", "Ruta real", "Stops", "Salida", "Llegada", "Dur (min)"];
+  if (hasMismatch) headers.push("⚠");
   if (hasSegments) headers.push("Vuelo");
   const out = [];
   out.push(`| ${headers.join(" | ")} |`);
   out.push(`|${headers.map(() => "---").join("|")}|`);
   for (const d of days) {
+    const route =
+      d.actualOrigin && d.actualDestination
+        ? `${d.actualOrigin}→${d.actualDestination}`
+        : "—";
     const cells = [
       shortDate(d.date),
       fmtPrice(d.total),
+      route,
       d.stops ?? "—",
       d.depart ?? "—",
       d.arrive ?? "—",
       d.duration ?? "—",
     ];
+    if (hasMismatch) {
+      cells.push(d.originMismatch || d.destinationMismatch ? "⚠" : "");
+    }
     if (hasSegments) {
       const flights = (d.segments ?? [])
         .map((s) => `${s.airline}${s.flightNumber}`)
@@ -146,8 +160,16 @@ function renderBrandedOffers(offers) {
   const out = [];
   for (const o of offers) {
     const stops = o.stops === 0 ? "directo" : `${o.stops} escalas`;
+    const route =
+      o.actualOrigin && o.actualDestination
+        ? `${o.actualOrigin}→${o.actualDestination}`
+        : "";
+    const mismatch =
+      o.originMismatch || o.destinationMismatch
+        ? " ⚠ aeropuerto distinto al pedido"
+        : "";
     out.push(
-      `**${shortDate(o.date)}** · ${o.depart ?? "—"}→${o.arrive ?? "—"} · ${stops} · ${o.duration ?? "?"} min`,
+      `**${shortDate(o.date)}** ${route} · ${o.depart ?? "—"}→${o.arrive ?? "—"} · ${stops} · ${o.duration ?? "?"} min${mismatch}`,
     );
     if (o.brands?.length) {
       // Sort by total ascending so cheapest is on top
